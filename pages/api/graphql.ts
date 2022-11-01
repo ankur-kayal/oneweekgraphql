@@ -2,6 +2,8 @@ import { createServer } from '@graphql-yoga/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+import { Resolvers } from '../../graphql/types';
+
 const typeDefs = readFileSync(
   join(process.cwd(), 'graphql', 'schema.graphql'),
   {
@@ -9,7 +11,7 @@ const typeDefs = readFileSync(
   }
 );
 
-const resolvers = {
+const resolvers: Resolvers = {
   Query: {
     cart: (_, { id }) => {
       return {
