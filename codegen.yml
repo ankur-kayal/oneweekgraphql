@@ -4,6 +4,10 @@ generates:
   graphql/types.ts:
     config:
       contextType: ../pages/api/graphql#GraphQLContext
+      mapperTypeSuffix: Model
+      mappers:
+        Cart: "@prisma/client#Cart"
+        CartItem: "@prisma/client#CartItem"
     plugins:
       - "typescript"
       - "typescript-resolvers"
