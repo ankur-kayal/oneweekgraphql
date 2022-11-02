@@ -1,6 +1,7 @@
 import { createServer } from '@graphql-yoga/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import currencyFormatter from 'currency-formatter';
 
 import type { PrismaClient } from '@prisma/client';
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -12,6 +13,8 @@ export type GraphQLContext = {
   prisma: PrismaClient;
 };
 
+const currencyCode = 'USD';
+
 const typeDefs = readFileSync(
   join(process.cwd(), 'graphql', 'schema.graphql'),
   {
@@ -21,10 +24,68 @@ const typeDefs = readFileSync(
 
 const resolvers: Resolvers = {
   Query: {
-    cart: (_, { id }) => {
+    cart: async (_, { id }, { prisma }) => {
+      let cart = await prisma.cart.findUnique({
+        where: {
+          id,
+        },
+      });
+
+      if (!cart) {
+        cart = await prisma.cart.create({
+          data: {
+            id,
+          },
+        });
+      }
+      return cart;
+    },
+  },
+  Cart: {
+    items: async ({ id }, _, { prisma }) => {
+      const items =
+        (await prisma.cart
+          .findUnique({
+            where: {
+              id,
+            },
+          })
+          .items()) ?? [];
+
+      return items;
+    },
+    totalItems: async ({ id }, _, { prisma }) => {
+      const items =
+        (await prisma.cart
+          .findUnique({
+            where: {
+              id,
+            },
+          })
+          .items()) ?? [];
+
+      return items.reduce((total, item) => total + item.quantity || 1, 0);
+    },
+    subTotal: async ({ id }, _, { prisma }) => {
+      const items =
+        (await prisma.cart
+          .findUnique({
+            where: {
+              id,
+            },
+          })
+          .items()) ?? [];
+
+      const amount = items.reduce(
+        (acc, item) => acc + item.price * item.quantity,
+        0
+      );
+
       return {
-        id,
-        totalItems: 0,
+        amount,
+        formatted: currencyFormatter.format(amount / 100, {
+          code: currencyCode,
+        }),
       };
     },
   },
