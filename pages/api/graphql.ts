@@ -1,4 +1,4 @@
-import { createServer } from '@graphql-yoga/node';
+import { createServer, GraphQLYogaError } from '@graphql-yoga/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import currencyFormatter from 'currency-formatter';
@@ -8,6 +8,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 import { Resolvers } from '../../graphql/types';
 import prisma from '../../lib/prisma';
+import { stripe } from '../../lib/stripe';
+import { origin } from '../../lib/client';
 import { findOrCreateCart } from '../../lib/cart';
 
 export type GraphQLContext = {
@@ -121,6 +123,61 @@ const resolvers: Resolvers = {
       }
 
       return findOrCreateCart(prisma, cartId);
+    },
+    createCheckoutSession: async (_, { input }, { prisma }) => {
+      const { cartId } = input;
+
+      const cart = await prisma.cart.findUnique({
+        where: {
+          id: cartId,
+        },
+      });
+
+      if (!cart) {
+        throw new GraphQLYogaError('Invalid cart');
+      }
+
+      const cartItems = await prisma.cart
+        .findUnique({
+          where: {
+            id: cartId,
+          },
+        })
+        .items();
+
+      if (!cartItems || cartItems.length === 0) {
+        throw new GraphQLYogaError('Cart is empty');
+      }
+
+      const line_items = cartItems.map((item) => {
+        return {
+          quantity: item.quantity,
+          price_data: {
+            currency: currencyCode,
+            unit_amount: item.price,
+            product_data: {
+              name: item.name,
+              description: item.description || undefined,
+              images: item.image ? [item.image] : [],
+            },
+          },
+        };
+      });
+
+      const session = await stripe.checkout.sessions.create({
+        success_url: `${origin}/thankyou?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/cart?cancelled=true`,
+        line_items,
+        metadata: {
+          cartId: cart.id,
+        },
+        mode: 'payment',
+      });
+
+      return {
+        id: session.id,
+        url: session.url,
+      };
     },
   },
   Cart: {
