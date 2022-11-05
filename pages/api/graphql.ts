@@ -70,6 +70,26 @@ const resolvers: Resolvers = {
       });
       return findOrCreateCart(prisma, cartId);
     },
+    increaseCartItem: async (_, { input }, { prisma }) => {
+      const { cartId, quantity } = await prisma.cartItem.update({
+        data: {
+          quantity: {
+            increment: 1,
+          },
+        },
+        where: {
+          id_cartId: {
+            id: input.id,
+            cartId: input.cartId,
+          },
+        },
+        select: {
+          quantity: true,
+          cartId: true,
+        },
+      });
+      return findOrCreateCart(prisma, cartId);
+    },
   },
   Cart: {
     items: async ({ id }, _, { prisma }) => {
