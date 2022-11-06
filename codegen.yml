@@ -1,5 +1,6 @@
 overwrite: true
 schema: "graphql/schema.graphql"
+documents: "**/*.graphql"
 generates:
   graphql/types.ts:
     config:
@@ -10,4 +11,6 @@ generates:
         CartItem: "@prisma/client#CartItem"
     plugins:
       - "typescript"
+      - "typescript-operations"
       - "typescript-resolvers"
+      - "typescript-react-apollo"
